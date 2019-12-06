@@ -36,7 +36,7 @@ export interface ShellProcessOptions {
     env?: { [key: string]: string | null },
 }
 
-function setUpEnvVariables(customEnv?:  { [key: string]: string | null }): { [key: string]: string } {
+function setUpEnvVariables(customEnv?: { [key: string]: string | null }): { [key: string]: string } {
     const processEnv: { [key: string]: string } = {};
 
     const prEnv: NodeJS.ProcessEnv = process.env;

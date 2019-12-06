@@ -12,6 +12,10 @@
   },
   "theiaExtensions": [
     {
+      "backend": "lib/common/process-common-module",
+      "frontend": "lib/common/process-common-module"
+    },
+    {
       "backend": "lib/node/process-backend-module"
     }
   ],

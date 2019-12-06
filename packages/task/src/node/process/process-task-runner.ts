@@ -18,19 +18,20 @@ import { injectable, inject, named } from 'inversify';
 import { isWindows, isOSX, ILogger } from '@theia/core';
 import { FileUri } from '@theia/core/lib/node';
 import {
-    TerminalProcessOptions,
     RawProcessFactory,
     TerminalProcessFactory,
     ProcessErrorEvent,
     Process,
-    QuotedString,
 } from '@theia/process/lib/node';
+import { ShellQuotedString, ShellQuotingFunctions, BashQuotingFunctions, CmdQuotingFunctions, PowershellQuotingFunctions, createShellCommandLine, ShellQuoting } from '@theia/process/lib/common/shell-quoting';
 import { TaskFactory } from './process-task';
 import { TaskRunner } from '../task-runner';
 import { Task } from '../task';
 import { TaskConfiguration } from '../../common/task-protocol';
 import { ProcessTaskError, CommandOptions } from '../../common/process/task-protocol';
 import * as fs from 'fs';
+import { ShellProcess } from '@theia/terminal/lib/node/shell-process';
+import { deepClone } from '@theia/core';
 
 /**
  * Task runner that runs a task as a process or a command inside a shell.
@@ -58,48 +59,26 @@ export class ProcessTaskRunner implements TaskRunner {
         if (!taskConfig.command) {
             throw new Error("Process task config must have 'command' property specified");
         }
-
         try {
-            const { command, args, options } = this.getResolvedCommand(taskConfig);
-
-            const processType = taskConfig.type === 'process' ? 'process' : 'shell';
-            let proc: Process;
-
             // Always spawn a task in a pty, the only difference between shell/process tasks is the
             // way the command is passed:
             // - process: directly look for an executable and pass a specific set of arguments/options.
             // - shell: defer the spawning to a shell that will evaluate a command line with our executable.
-            if (processType === 'process') {
-                this.logger.debug(`Task: spawning process: ${command} with ${args}`);
-                proc = this.terminalProcessFactory(<TerminalProcessOptions>{
-                    command, args, options: {
-                        ...options,
-                        shell: false,
-                    }
-                });
-            } else {
-                // all Task types without specific TaskRunner will be run as a shell process e.g.: npm, gulp, etc.
-                this.logger.debug(`Task: executing command through a shell: ${command}`);
-                proc = this.terminalProcessFactory(<TerminalProcessOptions>{
-                    command, args, options: {
-                        ...options,
-                        shell: options.shell || true,
-                    },
-                });
-            }
+            // tslint:disable-next-line: no-void-expression
+            const terminal: Process = this.terminalProcessFactory(this.getResolvedCommand(taskConfig));
 
             // Wait for the confirmation that the process is successfully started, or has failed to start.
             await new Promise((resolve, reject) => {
-                proc.onStart(resolve);
-                proc.onError((error: ProcessErrorEvent) => {
+                terminal.onStart(resolve);
+                terminal.onError((error: ProcessErrorEvent) => {
                     reject(ProcessTaskError.CouldNotRun(error.code));
                 });
             });
 
             return this.taskFactory({
                 label: taskConfig.label,
-                process: proc,
-                processType: processType,
+                process: terminal,
+                processType: taskConfig.type as 'process' | 'shell',
                 context: ctx,
                 config: taskConfig
             });
@@ -110,13 +89,13 @@ export class ProcessTaskRunner implements TaskRunner {
     }
 
     private getResolvedCommand(taskConfig: TaskConfiguration): {
-        command: string | undefined,
-        args: Array<string | QuotedString> | undefined,
+        command: string
+        args: string[]
         options: CommandOptions
     } {
         let systemSpecificCommand: {
-            command: string | undefined,
-            args: Array<string | QuotedString> | undefined,
+            command: string | undefined
+            args: Array<string | ShellQuotedString> | undefined
             options: CommandOptions
         };
         // on windows, windows-specific options, if available, take precedence
@@ -146,18 +125,116 @@ export class ProcessTaskRunner implements TaskRunner {
             };
         }
 
-        return systemSpecificCommand;
+        if (typeof systemSpecificCommand.command === 'undefined') {
+            throw new Error('The `command` field of a task cannot be undefined.');
+        }
+
+        let args: string[];
+        let command = systemSpecificCommand.command;
+
+        if (taskConfig.type === 'shell') {
+
+            let execArgs: string[] = [];
+            let quotingFunctions: ShellQuotingFunctions | undefined;
+            const { shell } = systemSpecificCommand.options;
+
+            // Actual command to execute is now a shell.
+            // Thing to be run will be passed as an argument.
+            command = shell && shell.executable || ShellProcess.getShellExecutablePath();
+
+            if (/bash(.exe)?$/.test(command)) {
+                quotingFunctions = BashQuotingFunctions;
+                execArgs = ['-l', '-c'];
+
+            } else if (/cmd(.exe)?$/.test(command)) {
+                quotingFunctions = CmdQuotingFunctions;
+                execArgs = ['/c'];
+
+            } else if (/(ps|pwsh|powershell)(.exe)?/.test(command)) {
+                quotingFunctions = PowershellQuotingFunctions;
+                execArgs = ['-c'];
+            }
+
+            // Allow overriding shell options from task configuration.
+            args = [...shell && shell.args || execArgs];
+
+            // Check if an argument list is defined or not. It can be empty.
+            if (systemSpecificCommand.args) {
+                // Arguments are provided, so "command" is actually an executable we want to execute with args.
+                args.push(createShellCommandLine(
+                    [systemSpecificCommand.command, ...systemSpecificCommand.args]
+                        // We want to quote arguments only if needed.
+                        .map(arg => (quotingFunctions && typeof arg === 'string' && this.argumentNeedsQuotes(arg, quotingFunctions)) ? <ShellQuotedString>{
+                            quoting: ShellQuoting.Strong,
+                            value: arg,
+                        } : arg),
+                    quotingFunctions));
+            } else {
+                // No arguments are provided, so "command" is actually the full command line to execute.
+                args.push(systemSpecificCommand.command);
+            }
+
+        } else {
+            // Normalize arguments from `ShellQuotedString` to `string`.
+            args = systemSpecificCommand.args && systemSpecificCommand.args
+                .map(arg => typeof arg === 'string' ? arg : arg.value) || [];
+        }
+        return { command, args, options };
+    }
+
+    /**
+     * This is task specific, to align with VS Code's behavior.
+     *
+     * When parsing arguments, VS Code will try to detect if the user already
+     * tried to quote things.
+     *
+     * See: https://github.com/microsoft/vscode/blob/d363b988e1e58cf49963841c498681cdc6cb55a3/src/vs/workbench/contrib/tasks/browser/terminalTaskSystem.ts#L1101-L1127
+     *
+     * @param value
+     * @param shellQuotingOptions
+     */
+    protected argumentNeedsQuotes(value: string, shellQuotingOptions: ShellQuotingFunctions): boolean {
+        const { characters } = shellQuotingOptions;
+        const needQuotes = new Set([' ', ...characters.needQuotes]);
+        if (!characters) {
+            return false;
+        }
+        if (value.length >= 2) {
+            const first = value[0] === characters.strong ? characters.strong : value[0] === characters.weak ? characters.weak : undefined;
+            if (first === value[value.length - 1]) {
+                return false;
+            }
+        }
+        let quote: string | undefined;
+        for (let i = 0; i < value.length; i++) {
+            // We found the end quote.
+            const ch = value[i];
+            if (ch === quote) {
+                quote = undefined;
+            } else if (quote !== undefined) {
+                // skip the character. We are quoted.
+                continue;
+            } else if (ch === characters.escape) {
+                // Skip the next character
+                i++;
+            } else if (ch === characters.strong || ch === characters.weak) {
+                quote = ch;
+            } else if (needQuotes.has(ch)) {
+                return true;
+            }
+        }
+        return false;
     }
 
     private getSystemSpecificCommand(taskConfig: TaskConfiguration, system: 'windows' | 'linux' | 'osx' | undefined): {
         command: string | undefined,
-        args: Array<string | QuotedString> | undefined,
+        args: Array<string | ShellQuotedString> | undefined,
         options: CommandOptions
     } {
         // initialize with default values from the `taskConfig`
         let command: string | undefined = taskConfig.command;
-        let args: Array<string | QuotedString> | undefined = taskConfig.args;
-        let options: CommandOptions = taskConfig.options || {};
+        let args: Array<string | ShellQuotedString> | undefined = taskConfig.args;
+        let options: CommandOptions = deepClone(taskConfig.options) || {};
 
         if (system) {
             if (taskConfig[system].command) {
@@ -171,11 +248,15 @@ export class ProcessTaskRunner implements TaskRunner {
             }
         }
 
+        if (options.cwd) {
+            options.cwd = this.asFsPath(options.cwd);
+        }
+
         return { command, args, options };
     }
 
     protected asFsPath(uriOrPath: string): string {
-        return (uriOrPath.startsWith('file:/'))
+        return (uriOrPath.startsWith('file:'))
             ? FileUri.fsPath(uriOrPath)
             : uriOrPath;
     }

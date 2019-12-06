@@ -16,6 +16,8 @@
 
 import { Event } from '@theia/core';
 import { BaseWidget } from '@theia/core/lib/browser';
+import { TerminalProcessInfo } from '../../common/base-terminal-protocol';
+import { CommandLineOptions } from '@theia/process/lib/common/shell-command-builder';
 
 /**
  * Terminal UI widget.
@@ -23,6 +25,8 @@ import { BaseWidget } from '@theia/core/lib/browser';
 export abstract class TerminalWidget extends BaseWidget {
 
     abstract processId: Promise<number>;
+
+    abstract processInfo: Promise<TerminalProcessInfo>;
 
     /**
      * Start terminal and return terminal id.
@@ -35,6 +39,17 @@ export abstract class TerminalWidget extends BaseWidget {
      * @param text - text content.
      */
     abstract sendText(text: string): void;
+
+    /**
+     * Will build a full command line to send via stdin to the running shell.
+     *
+     * This command will look at the running shell in order to follow escaping rules.
+     *
+     * Supported shells: bash, powershell, cmd.exe
+     *
+     * @param commandOptions - command, arguments and cwd.
+     */
+    abstract executeCommand(commandOptions: CommandLineOptions): Promise<void>;
 
     abstract onDidOpen: Event<void>;
 

@@ -123,8 +123,8 @@ export class DefaultDebugSessionFactory implements DebugSessionFactory {
                     resolve(channel);
                 }, { reconnecting: false })
             ),
-            this.getTraceOutputChannel());
-
+            this.getTraceOutputChannel()
+        );
         return new DebugSession(
             sessionId,
             options,
@@ -134,7 +134,8 @@ export class DefaultDebugSessionFactory implements DebugSessionFactory {
             this.breakpoints,
             this.labelProvider,
             this.messages,
-            this.fileSystem);
+            this.fileSystem,
+        );
     }
 
     protected getTraceOutputChannel(): OutputChannel | undefined {
