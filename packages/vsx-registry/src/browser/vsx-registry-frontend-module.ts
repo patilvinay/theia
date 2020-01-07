@@ -28,10 +28,12 @@ import { VSXRegistryDetailWidgetFactory } from './view/detail/vsx-registry-detai
 
 import '../../src/browser/style/index.css';
 import { bindVSXRegistryPreferences } from './vsx-registry-preferences';
+import { ColorContribution } from '@theia/core/lib/browser/color-application-contribution';
 
 export default new ContainerModule(bind => {
     bindViewContribution(bind, VSXRegistryContribution);
     bind(FrontendApplicationContribution).toService(VSXRegistryContribution);
+    bind(ColorContribution).toService(VSXRegistryContribution);
 
     bind(VSXRegistrySearchbarWidget).toSelf().inSingletonScope();
     bind(VSXRegistryService).toSelf().inSingletonScope();

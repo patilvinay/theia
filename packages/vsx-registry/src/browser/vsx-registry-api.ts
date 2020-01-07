@@ -29,7 +29,6 @@ export class VSXRegistryAPI {
         const headers: HeadersInit = { 'Content-Type': 'application/json' };
         const param: RequestInit = {
             method: req.method,
-            credentials: 'include',
             headers
         };
 

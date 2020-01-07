@@ -32,7 +32,8 @@ export const ExtensionKeywords = Symbol('ExtensionKeyword');
 
 @injectable()
 export class VSXRegistryService {
-    protected apiUrl: string;
+    apiUrl: string;
+    
     protected readonly toDispose = new DisposableCollection();
 
     protected readonly onDidUpdateSearchEmitter = new Emitter<void>();

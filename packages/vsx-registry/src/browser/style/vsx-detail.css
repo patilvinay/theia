@@ -20,9 +20,7 @@
 }
 
 .theia-vsx-registry.vscode-extension-detail .extension-header-container {
-    background: var(--theia-layout-color0);
     padding: 15px 22px;
-    border-bottom: 3px solid var(--theia-border-color1);
 }
 
 .theia-vsx-registry.vscode-extension-detail .extension-title-container {
@@ -44,7 +42,7 @@
 }
 
 .theia-vsx-registry.vscode-extension-detail .text-divider {
-    border-right: var(--theia-ui-font-color1) 1px solid;
+    border-right: var(--theia-textSeparator-foreground) 1px solid;
     padding-right: 10px;
     box-sizing: border-box;
     margin-right: 10px;
@@ -69,7 +67,6 @@
 }
 
 .theia-vsx-registry.vscode-extension-detail .extension-documentation {
-    color: var(--theia-ui-font-color1);
     height: 100%;
     width: 100%;
 }
@@ -81,7 +78,6 @@
 .theia-vsx-registry.vscode-extension-detail a {
     font-weight: bold;
     text-decoration: none;
-    color: var(--theia-accent-color0);
 }
 
 .theia-vsx-registry.vscode-extension-detail code {
@@ -92,7 +88,7 @@
 }
 
 .theia-vsx-registry.vscode-extension-detail pre code {
-    background: var(--theia-layout-color2);
+    background: var(--theia-editor-background);
     display: block;
     padding: 10px;
 }

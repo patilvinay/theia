@@ -33,16 +33,14 @@
 }
 
 .theia-vsx-registry .extension-header-container {
-    background: var(--theia-layout-color1);
     margin-bottom: 5px;
-    color: var(--theia-ui-font-color1);
 }
 
 .theia-vsx-registry .extension-button {
-    background-color: var(--theia-success-color1);
+    background-color: var(--theia-extensionButton-prominentBackground);
     padding: 2px;
     box-sizing: border-box;
-    color: var(--theia-ui-icon-font-color);
+    color: var(--theia-extensionButton-prominentForeground);
     width: 65px;
     text-align: center;
     font-size: var(--theia-ui-font-size0);
@@ -50,35 +48,35 @@
 }
 
 .theia-vsx-registry .extension-button.working {
-    background-color: var(--theia-disabled-color1);
-    color: var(--theia-ui-font-color0);
+    background-color: var(--theia-button-background);
+    color: var(--theia-button-foreground);
     width: auto;
 }
 
 .theia-vsx-registry .extension-button:hover {
     cursor: pointer;
-    background-color: var(--theia-success-color0);
+    background-color: var(--theia-extensionButton-prominentHoverBackground);
 }
 
 .theia-vsx-registry .extension-button.working:hover {
-    background-color: var(--theia-disabled-color1);
+    background-color: var(--theia-button-hoverBackground);
     cursor: default;
 }
 
 .theia-vsx-registry .extension-button.installed {
-    background-color: var(--theia-error-color1);
+    background-color: var(--theia-button-background);
 }
 
 .theia-vsx-registry .extension-button.outdated {
-    background-color: var(--theia-accent-color2);
+    background-color: var(--theia-button-background);
 }
 
 .theia-vsx-registry .extension-button.installed:hover {
-    background-color: var(--theia-error-color0);
+    background-color: var(--theia-button-hoverBackground);
 }
 
 .theia-vsx-registry .extension-button.outdated:hover {
-    background-color: var(--theia-accent-color1);
+    background-color: var(--theia-button-hoverBackground);
 }
 
 @import './vsx-registry-list.css';

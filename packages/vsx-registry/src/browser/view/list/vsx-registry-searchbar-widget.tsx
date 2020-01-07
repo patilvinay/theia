@@ -94,6 +94,7 @@ export class VSXRegistrySearchComponent extends React.Component<VSXRegistrySearc
                         id='extensionSearchField'
                         type='text'
                         value={this.state.query}
+                        className="theia-input"
                         placeholder='Search in Open VSCode Registry'
                         onChange={this.searchFieldKeyUp}>
                     </input >

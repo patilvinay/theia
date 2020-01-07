@@ -24,6 +24,7 @@ import { VSXRegistryList } from './vsx-registry-list-component';
 import { VSCodeExtensionPart, VSXRegistryExtensionLocation } from '../../vsx-registry-types';
 import { ProgressLocationService } from '@theia/core/lib/browser/progress-location-service';
 import { ProgressService } from '@theia/core/lib/common';
+import { AlertMessage } from '@theia/core/lib/browser/widgets/alert-message';
 
 export const VSXRegistryListOptions = Symbol('VSCodeExtensionsListOptions');
 
@@ -72,6 +73,12 @@ export class VSXRegistryListWidget extends ReactWidget {
     }
 
     protected render(): React.ReactNode {
+        if (!this.service.apiUrl) {
+            return <AlertMessage
+                type='WARNING'
+                header='No URL set for VSX Registry Server.'
+            />;
+        }
         return <React.Fragment>
             <VSXRegistryList
                 progressLocation='vsx-registry-list'

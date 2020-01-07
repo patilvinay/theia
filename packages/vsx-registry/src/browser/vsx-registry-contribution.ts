@@ -20,6 +20,8 @@ import { AbstractViewContribution } from '@theia/core/lib/browser/shell/view-con
 import { VSXRegistryWidget } from './view/list/vsx-registry-widget';
 import { Widget } from '@theia/core/lib/browser';
 import { VSXRegistryService } from './vsx-registry-service';
+import { ColorContribution } from '@theia/core/lib/browser/color-application-contribution';
+import { ColorRegistry, Color } from '@theia/core/lib/browser/color-registry';
 
 export namespace VSCodeExtensionsCommands {
     export const CLEAR_ALL: Command = {
@@ -31,7 +33,7 @@ export namespace VSCodeExtensionsCommands {
 }
 
 @injectable()
-export class VSXRegistryContribution extends AbstractViewContribution<VSXRegistryWidget> {
+export class VSXRegistryContribution extends AbstractViewContribution<VSXRegistryWidget> implements ColorContribution {
 
     @inject(MessageService) protected readonly messageService: MessageService;
     @inject(VSXRegistryService) protected readonly service: VSXRegistryService;
@@ -56,6 +58,29 @@ export class VSXRegistryContribution extends AbstractViewContribution<VSXRegistr
             isEnabled: w => this.withWidget(w, widget => !!widget.getSearchTerm()),
             isVisible: w => this.withWidget(w, () => true)
         });
+    }
+
+    async registerColors(colors: ColorRegistry): Promise<void> {
+        colors.register(
+            {
+                id: 'extensionButton.prominentBackground', defaults: {
+                    dark: '#327e36',
+                    light: '#327e36'
+                }, description: "Button background color for actions extension that stand out (e.g. install button)."
+            },
+            {
+                id: 'extensionButton.prominentForeground', defaults: {
+                    dark: Color.white,
+                    light: Color.white
+                }, description: "Button foreground color for actions extension that stand out (e.g. install button)."
+            },
+            {
+                id: 'extensionButton.prominentHoverBackground', defaults: {
+                    dark: '#28632b',
+                    light: '#28632b'
+                }, description: "Button background hover color for actions extension that stand out (e.g. install button)."
+            }
+        );
     }
 
     protected withWidget<T>(widget: Widget | undefined = this.tryGetWidget(), fn: (widget: VSXRegistryWidget) => T): T | false {
