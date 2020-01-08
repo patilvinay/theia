@@ -75,6 +75,10 @@ export abstract class AbstractViewContribution<T extends Widget> implements Comm
         }
     }
 
+    protected get viewId(): string {
+        return this.options.viewContainerId || this.options.widgetId;
+    }
+
     get widget(): Promise<T> {
         return this.widgetManager.getOrCreateWidget(this.options.widgetId);
     }
@@ -85,7 +89,7 @@ export abstract class AbstractViewContribution<T extends Widget> implements Comm
 
     async openView(args: Partial<OpenViewArguments> = {}): Promise<T> {
         const shell = this.shell;
-        const widget = await this.widgetManager.getOrCreateWidget(this.options.viewContainerId || this.options.widgetId);
+        const widget = await this.widgetManager.getOrCreateWidget(this.viewId);
         const tabBar = shell.getTabBarFor(widget);
         const area = shell.getAreaFor(widget);
         if (!tabBar) {
@@ -97,12 +101,12 @@ export abstract class AbstractViewContribution<T extends Widget> implements Comm
             await shell.addWidget(widget, widgetArgs);
         } else if (args.toggle && area && shell.isExpanded(area) && tabBar.currentTitle === widget.title) {
             // The widget is attached and visible, so close it (toggle)
-            widget.close();
+            await this.closeView();
         }
         if (widget.isAttached && args.activate) {
-            shell.activateWidget(this.options.widgetId);
+            await shell.activateWidget(this.options.widgetId);
         } else if (widget.isAttached && args.reveal) {
-            shell.revealWidget(this.options.widgetId);
+            await shell.revealWidget(this.options.widgetId);
         }
         return this.widget;
     }
@@ -110,15 +114,24 @@ export abstract class AbstractViewContribution<T extends Widget> implements Comm
     registerCommands(commands: CommandRegistry): void {
         if (this.toggleCommand) {
             commands.registerCommand(this.toggleCommand, {
-                execute: () => this.openView({
-                    toggle: true,
-                    activate: true
-                })
+                execute: () => this.toggleView()
             });
         }
         this.quickView.registerItem({
             label: this.options.widgetName,
             open: () => this.openView({ activate: true })
+        });
+    }
+
+    async closeView(): Promise<T | undefined> {
+        await this.shell.closeWidget(this.viewId);
+        return this.tryGetWidget();
+    }
+
+    toggleView(): Promise<T> {
+        return this.openView({
+            toggle: true,
+            activate: true
         });
     }
 

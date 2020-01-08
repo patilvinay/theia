@@ -183,6 +183,15 @@ module.exports = {
                         cacheDirectory: true
                     }
                 }
+            },
+            /**
+             * Expose bundled modules on window.theia.moduleName namespace, e.g.
+             * window['theia']['@theia/core/lib/common/uri'].
+             * Such syntax can be used by external code, for instance, for testing.
+             */
+            {
+                test: /\\.js$/,
+                loader: require.resolve('@theia/application-manager/lib/expose-loader')
             }
         ]
     },

@@ -88,6 +88,8 @@ function load(raw) {
 }
 
 function start() {
+    (window['theia'] = window['theia'] || {}).container = container;
+
     const themeService = ThemeService.get();
     themeService.loadUserTheme();
 

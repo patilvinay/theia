@@ -942,7 +942,7 @@ export class ApplicationShell extends Widget {
      *
      * @returns the activated widget if it was found
      */
-    activateWidget(id: string): Widget | undefined {
+    async activateWidget(id: string): Promise<Widget | undefined> {
         const stack = this.toTrackedStack(id);
         let current = stack.pop();
         if (current && !this.doActivateWidget(current.id)) {
@@ -957,7 +957,29 @@ export class ApplicationShell extends Widget {
                 current = child;
             }
         }
+        if (!current) {
+            return undefined;
+        }
+        await Promise.all([
+            this.onActive(current),
+            this.waitForVisibility(current, true),
+            this.pendingUpdates
+        ]);
         return current;
+    }
+
+    protected onActive(widget: Widget): Promise<void> {
+        if (this.activeWidget === widget) {
+            return Promise.resolve();
+        }
+        return new Promise(resolve => {
+            const toDispose = this.onDidChangeActiveWidget(() => {
+                if (this.activeWidget === widget) {
+                    toDispose.dispose();
+                    resolve();
+                }
+            });
+        });
     }
 
     /**
@@ -1029,13 +1051,24 @@ export class ApplicationShell extends Widget {
         this.toDisposeOnActivationCheck.push(Disposable.create(() => window.cancelAnimationFrame(request)));
     }
 
+    async closeWidget(id: string): Promise<Widget | undefined> {
+        // TODO: handle composite widgets?
+        const current = this.tracker.widgets.find(widget => widget.id === id);
+        if (!current) {
+            return undefined;
+        }
+        current.close();
+        await this.waitForVisibility(current, false);
+        return current;
+    }
+
     /**
      * Reveal a widget in the application shell. This makes the widget visible,
      * but does not activate it.
      *
      * @returns the revealed widget if it was found
      */
-    revealWidget(id: string): Widget | undefined {
+    async revealWidget(id: string): Promise<Widget | undefined> {
         const stack = this.toTrackedStack(id);
         let current = stack.pop();
         if (current && !this.doRevealWidget(current.id)) {
@@ -1049,7 +1082,30 @@ export class ApplicationShell extends Widget {
                 current = child;
             }
         }
+        if (!current) {
+            return undefined;
+        }
+        await Promise.all([
+            this.waitForVisibility(current, true),
+            this.pendingUpdates
+        ]);
         return current;
+    }
+
+    protected waitForVisibility(widget: Widget, visibility: boolean): Promise<void> {
+        if (widget.isVisible === visibility) {
+            return new Promise(resolve => window.requestAnimationFrame(() => resolve()));
+        }
+        return new Promise(resolve => {
+            const waitForVisible = () => window.requestAnimationFrame(() => {
+                if (widget.isVisible === visibility) {
+                    window.requestAnimationFrame(() => resolve());
+                } else {
+                    waitForVisible();
+                }
+            });
+            waitForVisible();
+        });
     }
 
     /**
